@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createHashRouter, RouterProvider } from 'react-router-dom'
 import './App.css'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -9,7 +9,7 @@ import Profile from './pages/Profile'
 import BookMarks from './pages/BookMarks'
 import EditProfile from './pages/EditProfile'
 
-const routers =createBrowserRouter(
+const routers =createHashRouter(
   [
     {
       path:'/',
@@ -23,10 +23,7 @@ const routers =createBrowserRouter(
         {path:"edit-profile",element:<EditProfile/>},
         {path:"*",element:<NotFound/>},
       ]
-    } ],{
-
-    basename: "/linkedPost" 
-  })
+    } ])
 
 function App() {
  
