@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, createHashRouter, RouterProvider } from 'react-router-dom'
 import './App.css'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -16,17 +16,17 @@ const routers =createBrowserRouter(
       element:<Layout/> ,
       children:[
         {index:true,element:<Home/>},
-        {path:"/login",element:<Login/>},
-        {path:"/signup",element:<SignUp/>},
-        {path:"/my-profile",element:<Profile/>},
-        {path:"/bookmarks",element:<BookMarks/>},
-        {path:"/edit-profile",element:<EditProfile/>},
-        {path:"/*",element:<NotFound/>},
+        {path:"login",element:<Login/>},
+        {path:"signup",element:<SignUp/>},
+        {path:"my-profile",element:<Profile/>},
+        {path:"bookmarks",element:<BookMarks/>},
+        {path:"edit-profile",element:<EditProfile/>},
+        {path:"*",element:<NotFound/>},
       ]
-    }
-  
-  
-])
+    } ],{
+
+    basename: "/linkedPost" 
+  })
 
 function App() {
  
