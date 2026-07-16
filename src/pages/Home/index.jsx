@@ -1,16 +1,93 @@
 import { useNavigate } from "react-router-dom"
 import Cookies from 'js-cookie'
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import GetPosts from "@/components/GetPosts/GetPosts";
 
 export default function Home() {
+  const [posts,setPosts] = useState([])
+  const [profile,setProfile] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate();
   useEffect(() => {
     if(!Cookies.get('userToken')){
       navigate('/login');
     }
   }, [navigate])
+
+  useEffect(()=>{
+    async function getPosts(){
+      try {
+        setIsLoading(true);
+        const [postsResponse,profileResponse] = await Promise.all([
+          axios.get(`https://route-posts.routemisr.com/posts?page=1&limit=5`,{
+          headers:{
+            'Token':Cookies.get('userToken')
+          }}),
+          axios.get("https://route-posts.routemisr.com/users/profile-data", {
+              headers: {
+                Token: Cookies.get("userToken"),
+              },
+            }),
+        
+      ]) 
+          setPosts(postsResponse.data.data.posts)
+          setProfile(profileResponse.data.data.user)
+        } catch (error) {
+          console.log(error);
+        }
+        setIsLoading(false)
+        console.log(posts);
+      }
+    getPosts();
+  },[])
+  console.log(posts);
   
+
   return <>
-    <h1 className="text-red-500">Home page</h1>
+    <div className="py-20">
+    <div className="grid grid-cols-13 gap-2">
+      {isLoading&&
+    <Card className="col-span-5 col-start-5">
+      <CardHeader>
+        <div className="flex w-fit items-center gap-4">
+          <Skeleton className="size-10 shrink-0 rounded-full" />
+          <div className="grid gap-2">
+            <Skeleton className="h-2 w-37.5" />
+            <Skeleton className="h-2 w-25" />
+          </div>
+        </div>
+        <Skeleton className="h-3 mt-4 w-2/3" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="aspect-video w-full" />
+      </CardContent>
+    </Card>
+      }
+      {isLoading&&
+    <Card className="col-span-5 col-start-5">
+      <CardHeader>
+        <div className="flex w-fit items-center gap-4">
+          <Skeleton className="size-10 shrink-0 rounded-full" />
+          <div className="grid gap-2">
+            <Skeleton className="h-2 w-37.5" />
+            <Skeleton className="h-2 w-25" />
+          </div>
+          
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="aspect-video w-full" />
+      </CardContent>
+    </Card>
+      }
+      { posts.map((post)=>(
+      <GetPosts key={post.id} post={post} photo={profile.photo} />
+      )       
+      )}
+    </div>
+    </div>
   </>
 }

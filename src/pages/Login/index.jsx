@@ -51,9 +51,17 @@ export default function Login() {
      )
      if(response.data.success){
        const token = response.data.data.token;
+       const userId = response.data.data.user._id;
        const time = response.data.data.expiresIn;
+       console.log(response.data);
+       
        // navigate("/")
        Cookies.set("userToken",token,{
+         expires:+time,
+         secure: true,   
+         sameSite: "strict"
+       })
+       Cookies.set("userId",userId,{
          expires:+time,
          secure: true,   
          sameSite: "strict"
@@ -77,7 +85,7 @@ export default function Login() {
   
 
 
-  return <>
+  return <div className="container mx-auto min-h-screen flex justify-center items-center">
         <form className=" w-full max-w-md mx-auto" onSubmit={handleSubmit(login)}>
   <Card className="w-full ">
       <CardHeader>
@@ -119,5 +127,5 @@ export default function Login() {
       </CardFooter>
     </Card>
         </form>
-  </>
+  </div>
 }

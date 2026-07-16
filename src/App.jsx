@@ -5,6 +5,9 @@ import Login from './pages/Login'
 import NotFound from './pages/NotFound'
 import Layout from './Layout/Layout'
 import SignUp from './pages/SignUp'
+import Profile from './pages/Profile'
+import BookMarks from './pages/BookMarks'
+import EditProfile from './pages/EditProfile'
 
 const routers =createBrowserRouter(
   [
@@ -15,6 +18,9 @@ const routers =createBrowserRouter(
         {index:true,element:<Home/>},
         {path:"/login",element:<Login/>},
         {path:"/signup",element:<SignUp/>},
+        {path:"/my-profile",element:<Profile/>},
+        {path:"/bookmarks",element:<BookMarks/>},
+        {path:"/edit-profile",element:<EditProfile/>},
         {path:"/*",element:<NotFound/>},
       ]
     }

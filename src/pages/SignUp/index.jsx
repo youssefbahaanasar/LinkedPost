@@ -99,7 +99,7 @@ export default function SignUp() {
     
   }
 
-  return<>
+  return<div className="container mx-auto min-h-screen flex justify-center items-center">
         <form onSubmit={handleSubmit(signUp)} className="w-full max-w-md mx-auto ">
       <Card className="w-full">
       <CardHeader>
@@ -225,6 +225,6 @@ export default function SignUp() {
       </CardFooter>
     </Card>
         </form>
-  </>
+  </div>
 
 }
