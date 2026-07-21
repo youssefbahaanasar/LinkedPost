@@ -1,5 +1,10 @@
-
 .active{
-    color: rgb(254, 50, 50);
+    color: #2B7FFF;
     font-weight: 500;
+    
+}
+.cursor-pointer.py-1.active{
+    color: #2B7FFF;
+    background: #ffffff18;
+    
 }

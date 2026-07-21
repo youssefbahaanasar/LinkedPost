@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import Cookies from "js-cookie";
@@ -17,6 +18,7 @@ import {
 import {
   BookmarkIcon,
   CakeIcon,
+  Camera,
   ChevronDown,
   ChevronUp,
   Circle,
@@ -29,7 +31,7 @@ import {
   PencilLineIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -42,42 +44,60 @@ import { Field, FieldGroup } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import GetPosts from "@/components/GetPosts/GetPosts";
+import Follow from "@/components/Follow/Follow";
+import ProfileHover from "@/components/ProfileHover/ProfileHover";
 
 
 export default function Profile() {
   const navigate = useNavigate();
   const imageRef = useRef(null);
   const profileImageRef = useRef(null);
+  const coverImageRef = useRef(null);
   const [allowPost, setAllowPost] = useState(false);
-  const [text, setText] = useState('');
+  const [text, setText] = useState('  ');
+  const [show, setShow] = useState('all');
   const [imagePreview, setImagePreview] = useState(null);
   const [hasImage, setHasImage] = useState(false);
   const [profile, setProfile] = useState([]);
+  const [myprofile, setMyprofile] = useState(false);
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [myPosts, setMyPosts] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+  const {id} = useParams();
 
   useEffect(() => {
+    window.scrollTo(top);
     if(!Cookies.get('userToken')){
       navigate('/login');
     }
   }, [navigate]) 
 
+
   useEffect(() => {
+    if(Cookies.get('userId')==id)setMyprofile(true);
+    else setMyprofile(false);
+    window.scrollTo(top);
+    setProfile([]);
+    setFollowers([]);
+    setFollowing([]);
+    setSuggestions([]);
+    setMyPosts([]);
+    setIsLoading(true)
     async function getMyProfile() {
       try {
         const [profileResponse, suggestionResponse, postsResponse] =
           await Promise.all([
-            axios.get("https://route-posts.routemisr.com/users/profile-data", {
+            axios.get(`https://route-posts.routemisr.com/users/${id}/profile`, {
               headers: {
                 Token: Cookies.get("userToken"),
               },
             }),
             axios.get(
-              "https://route-posts.routemisr.com/users/suggestions?limit=8",
+              "https://route-posts.routemisr.com/users/suggestions?page=1&limit=8",
               {
                 headers: {
                   Token: Cookies.get("userToken"),
@@ -85,7 +105,7 @@ export default function Profile() {
               },
             ),
             axios.get(
-              `https://route-posts.routemisr.com/users/${Cookies.get("userId")}/posts`,
+              `https://route-posts.routemisr.com/users/${id}/posts`,
               {
                 headers: {
                   Token: Cookies.get("userToken"),
@@ -94,21 +114,27 @@ export default function Profile() {
             ),
           ]);
         setProfile(profileResponse.data.data.user);
+        setFollowers(profileResponse.data.data.user.followers)
+        setFollowing(profileResponse.data.data.user.following)
         setSuggestions(suggestionResponse.data.data.suggestions);
         setMyPosts(postsResponse.data.data.posts);
+        window.scrollTo(top);
       } catch (error) {
         console.log(error);
       }
+       setIsLoading(false)
     }
     getMyProfile();
-  }, []);
+  }, [id]);
 
   useEffect(()=>{
     if(hasImage||text.trim() !==''){ 
       setAllowPost(true)
     }else {setAllowPost(false)}
   },[hasImage,text])
+
  async function changeProfilePhoto(e) {
+   setIsLoading(true);
   try {
     const formdata = new FormData();
     formdata.append('photo',e.target.files[0]);
@@ -118,12 +144,31 @@ export default function Profile() {
       
       }})
   console.log(response);
-    
+ 
   } catch (error) {
     console.log(error.response);
     
   }
-  
+   setIsLoading(false);
+
+  }
+ async function changeCoverPhoto(e) {
+  setIsLoading(true);
+  try {
+    const formdata = new FormData();
+    formdata.append('cover',e.target.files[0]);
+    const response = await axios.put(`https://route-posts.routemisr.com/users/upload-cover`,formdata,
+      {headers:{
+        Token:Cookies.get('userToken')
+        
+      }})
+      console.log(response);
+      
+    } catch (error) {
+      console.log(error.response);
+      
+    }
+    setIsLoading(false);
   }
   const handleClick = (e) => {
     e.stopPropagation();
@@ -150,12 +195,15 @@ export default function Profile() {
         },
       );
       console.log((await response).data);
+      
     } catch (error) {
       console.log(error.response);
     }
     setIsDialogOpen(false)
+    setText('  ')
     setHasImage(false)
     setIsLoading(false)
+
   };
 
   const handleImage = () => {
@@ -195,26 +243,43 @@ export default function Profile() {
     e.stopPropagation();
     profileImageRef.current.click();
   }
+  function handleCoverImageClick(e){
+    e.stopPropagation();
+    coverImageRef.current.click();
+  }
 
- console.log(profile);
+
+console.log();
 
   return (
     <>
-      <div className="grid grid-cols-12 gap-5 py-2 dark:bg-[#252728]">
-        <div className="mt-20 col-span-8 col-start-3">
+{/* TOP*/}
+    {/* Profile Info */}
+      <div className="grid grid-cols-12 gap-5 pt-15 pb-0 md:pb-4 dark:bg-[#252728]">
+        {/* Cover Photo */}
+        <div className="relative col-span-12 lg:rounded-lg lg:col-span-8 lg:col-start-3 bg-[#919393] min-h-50 lg:min-h-70 h-fit max-h-80  flex items-center justify-center overflow-hidden">
+          <img src={profile.cover} className="object-cover object-center w-full" alt="" />
+              {myprofile&&<div onClick={handleCoverImageClick} className="absolute bottom-1 right-1 text-xs text-black p-1 bg-white flex items-center justify-center font-medium gap-1 transition-all w-fit rounded-md cursor-pointer ">
+              <Camera fill="true" className="size-5 stroke-white "/> Edit cover photo
+              <input ref={coverImageRef} onChange={changeCoverPhoto}  type="file" className="hidden" />
+              </div>}
+        </div>
+        <div className=" col-span-8 col-start-3">
           <div className="flex flex-col md:flex-row justify-center items-center gap-5 w-full">
-            <div className="relative rounded-full w-50 h-50 dark:bg-[#E5E8EB]">
+        {/* Profile Photo */}
+            <div className="relative rounded-full -mt-15 w-fit dark:bg-[#E5E8EB]">
               <img
                 
-                className="rounded-full w-50 h-50 object-cover "
+                className="rounded-full size-40 md:size-50 object-cover "
                 src={profile.photo}
                 alt=""
               />
-              <div onClick={handleProfileImageClick} className="absolute flex items-center justify-center opacity-0 hover:opacity-100 transition-all  w-full h-full rounded-full cursor-pointer top-0">
-              <Edit className="" size={30} />
-              </div>
+              {myprofile&&<div onClick={handleProfileImageClick} className="absolute bottom-0 right-0 flex items-end justify-end transition-all hover:bg-white/20 p-1 rounded-full cursor-pointer ">
+              <Camera className="size-8" />
               <input ref={profileImageRef} onChange={changeProfilePhoto}  type="file" className="hidden" />
+              </div>}
             </div>
+            
             <div className="flex flex-col items-center xl:justify-between xl:grow xl:flex-row gap-2">
               <div className="flex justify-center items-center xl:items-start flex-col md:gap-2">
                 <div className="flex flex-col md:flex-row items-center md:items-end  md:gap-3">
@@ -227,23 +292,27 @@ export default function Profile() {
                   {profile.followersCount} followers
                 </span>
               </div>
-              <div className="flex gap-2 ">
-                <Button onClick={() => navigate("/bookmarks")}>
+              <div className="flex gap-2 grow justify-end ">
+               {myprofile&& <Button onClick={() => navigate("/bookmarks")}>
                   <BookmarkIcon className="" /> BookMarks
-                </Button>
-                <Button onClick={() => navigate("/edit-profile")}>
+                </Button>}
+                {myprofile&&<Button onClick={() => navigate("/edit-profile")}>
                   <PenBoxIcon className="" /> Edit profile
+                </Button>}
+                {!myprofile&&
+                <div className="w-60">
+                  <Follow userId={id} />
+                </div>
+                }
+                <Button onClick={()=>setShowSuggestions(!showSuggestions)} variant="outline" size="icon" className="hidden md:flex cursor-pointer">
+                  {showSuggestions?<ChevronUp/>:<ChevronDown />}
                 </Button>
               </div>
             </div>
           </div>
-          <div className="w-full flex justify-end">
-         <Button onClick={()=>setShowSuggestions(!showSuggestions)} variant="outline" size="icon" className="cursor-pointer">
-        {showSuggestions?<ChevronDown />:<ChevronUp/>}
-      </Button>
-          </div>
+
         </div>
-        <div className="col-span-8 col-start-3 border-b border-white/30 pb-5 ">
+        <div className="col-span-8 col-start-3 md:border-b border-white/30 pb-5 ">
         {showSuggestions&&<div className="border rounded-lg p-2">
           <h2 className="ps-1 py-2 font-semibold ">People you may know</h2>
           <Carousel
@@ -252,6 +321,7 @@ export default function Profile() {
           >
             <CarouselContent>
               {suggestions.map((suggestion) => (
+                
                 <CarouselItem
                   key={suggestion._id}
                   className="basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-2/11"
@@ -263,10 +333,11 @@ export default function Profile() {
                         src={suggestion.photo}
                         alt="Event cover"
                         className="relative z-20 aspect-square w-full object-cover cursor-pointer transition-all duration-400 hover:scale-125 "
+                         onClick={()=>navigate(`/profile/${suggestion._id}`)}
                       />
                       </div>
                       <CardHeader>
-                        <CardTitle className="line-clamp-1 cursor-pointer hover:underline w-fit">
+                        <CardTitle  onClick={()=>navigate(`/profile/${suggestion._id}`)} className="line-clamp-1 cursor-pointer hover:underline w-fit">
                           {suggestion.name}
                         </CardTitle>
                         <CardDescription>
@@ -274,9 +345,7 @@ export default function Profile() {
                         </CardDescription>
                       </CardHeader>
                       <CardFooter>
-                        <Button className="w-full bg-blue-400/20 text-blue-300/90 hover:bg-blue-400/40 cursor-pointer">
-                          Follow
-                        </Button>
+                        <Follow userId={suggestion._id} />
                       </CardFooter>
                     </Card>
                   </div>
@@ -287,12 +356,22 @@ export default function Profile() {
         </div>}
         </div>
       </div>
-      {isLoading&&<div className="sticky z-999 h-screen top-0 bottom-0 right-0 left-0 bg-white/10 flex items-center justify-center" >
+
+    {/* loading Screen */}
+      {isLoading&&<div className="sticky z-999 h-screen top-0 bottom-0 right-0 left-0 bg-white/30 flex items-center justify-center" >
                   <Spinner className={`size-20`} />
                 </div>}
-      <div className="grid grid-cols-12 dark:bg-[#1C1C1D] py-5 gap-3">
-        <div className="col-span-3 grow-0 h-fit col-start-3 ">
-          <div className="bg-[#252728] p-3 py-5 mb-3 rounded-lg">
+
+      <div className="grid grid-cols-12 dark:bg-[#1C1C1D] pb-10  pt-2 md:py-5 md:gap-3">
+      <div className="flex md:hidden justify-around border-b col-span-12 bg-[#252728]">
+          <span onClick={()=>setShow('all')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='all'&&'text-blue-500 border-b border-blue-500'} `} >All</span>
+          <span onClick={()=>setShow('posts')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='posts'&&'text-blue-500 border-b border-blue-500'} `} >Posts</span>
+          <span onClick={()=>setShow('about')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='about'&&'text-blue-500 border-b border-blue-500'} `} >About</span>
+        </div>
+{/*  left */}
+        {(show=='all'||show=='about')&&<div className="col-span-12  md:col-span-4 md:col-start-1 lg:col-span-3 lg:col-start-3 grow-0 h-fit  ">
+    {/* Personal Details */}
+          <div className="bg-[#252728] p-3 py-5  md:rounded-lg">
           <h3 className="text-lg font-semibold mb-5">Personal details</h3>
           <div className="ps-2 flex flex-col gap-4">
           <p className="flex gap-5 text-sm" ><CakeIcon size={20}/>{handleBirthDate(profile.dateOfBirth)}</p> 
@@ -300,15 +379,51 @@ export default function Profile() {
           <p className="flex gap-5 text-sm"><DoorOpenIcon size={20}/> Member scince {handleJoindDate(profile.createdAt)}</p>
           </div>
           </div>
-          <div className="bg-[#252728] p-3 py-5 rounded-lg">
-          <h3 className="text-lg font-semibold mb-5">Followers</h3>
-          <div className="">
+    {/* Followers */}
+          <div className="flex flex-col bg-[#252728] p-3 py-5 md:mt-3 md:rounded-lg">
+          <h3 className="relative text-md font-semibold">Followers
+            <span onClick={()=>navigate(`/followers/${profile.id}`)} className="absolute px-2 py-1 top-0 right-0 text-sm font-light text-blue-500 rounded-lg cursor-pointer hover:bg-white/10">See all</span>
+          </h3>
+          <p className='mb-2 text-sm text-gray-300/60'> {profile.followersCount} Friends</p>
+          <div className="grid grid-cols-6 gap-2">
+            {followers.slice(0,6).map((follower)=>
+              <div key={follower.id} className="col-span-2 flex flex-col gap-1 ">
+                <div onClick={()=>navigate(`/profile/${follower._id}`)} className="relative overflow-hidden group cursor-pointer rounded-lg">
+                    <img src={follower.photo} className="object-cover rounded-lg aspect-square" alt="" />
+                <div className="bg-white/10 absolute top-0 w-full h-0 group-hover:h-100 ">
+                </div>
+                </div>
+                <ProfileHover name={follower.name}  photo={follower.photo} userId={follower.id} />
+              </div>
+            )}
+          </div>
+          </div>
+    {/* Following */}
+          <div className=" bg-[#252728] p-3 py-5 md:mt-3 md:rounded-lg">
+          <h3 className="relative text-md font-semibold">Following
+            <span onClick={()=>navigate(`/followings/${profile.id}`)} className="absolute px-2 py-1 top-0 right-0 text-sm font-light text-blue-500 rounded-lg cursor-pointer hover:bg-white/10">See all</span>
+          </h3>
+          <p className='mb-2 text-sm text-gray-300/60'>Follows {profile.followingCount} accounts</p>
+          <div className="grid overflow-hidden grid-cols-6 gap-2">
+            {following.slice(0,6).map((follower)=>
+              <div key={follower.id} className="col-span-2 flex flex-col gap-1 ">
+                <div onClick={()=>navigate(`/profile/${follower._id}`)} className="relative overflow-hidden group cursor-pointer rounded-lg">
+                    <img src={follower.photo} className="object-cover bg-[#E2E5E9] min-w-full rounded-lg aspect-square" alt="" />
+                <div className="bg-white/10 absolute top-0 w-full h-0 group-hover:h-100 ">
+                </div>
+                </div>
+                <ProfileHover name={follower.name}  photo={follower.photo} userId={follower.id} />
+              </div>
+            )}
+          </div>
+          </div>
+        </div>}
 
-          </div>
-          </div>
-        </div>
-        <div className="col-span-5 col-start-6 h-fit  ">
-          <div className="p-3 mb-2 bg-[#252728]  rounded-lg">
+{/*  Right */}
+    {/* Create Post and Posts */}
+        {(show=='all'||show=='posts')&&<div className="col-span-12 md:col-span-8 md:col-start-5 lg:col-span-5 lg:col-start-6 h-fit  ">
+          {profile.id==Cookies.get('userId')&&<div className="p-3 mb-2 bg-[#252728]  md:rounded-lg">
+            <h3 className="md:hidden mb-2 font-bold text-md">Posts</h3>
           <div className="flex w-full border-b mb-2 pb-2 items-center gap-2 ">
             <input
               onChange={handleImage}
@@ -413,16 +528,14 @@ export default function Profile() {
               <FlameIcon /> Felling
             </Button>
           </div>
-          </div>
+          </div>}
         {myPosts.map((post)=>(
-          <div key={post.id} className="mb-2 bg-[#252728] rounded-lg ">
+          <div key={post.id} className="mb-2 bg-[#252728] md:rounded-lg ">
               <GetPosts post={post} photo={profile.photo} />
         </div>
         )  
         )}
-        </div>
-        
-
+        </div>}
       </div>
     </>
   );
