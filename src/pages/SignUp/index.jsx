@@ -37,8 +37,17 @@ export default function SignUp() {
     name: zod.string().nonempty("name is requierd").min(3,"name should be at least 3 charcters").max(15,"name is too long no more than 21 characters"),
     username: zod.string().nonempty("a username is requierd").regex( /^[a-z0-9_]{3,30}$/,"atleast 3 characters and atmost 30 characters") ,
     email: zod.string().nonempty("an email is required").regex(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,"write a valid email"),
-    password: zod.string().nonempty("password is requierd").regex(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/,'please follow the rules'),
-    rePassword: zod.string().nonempty("rePassword is requierd"),
+    password: zod.string().nonempty("password is requierd").regex(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/, 
+      ` <ul>
+        <p>Password rules</p>
+        <li>at least 8 characters</li>
+        <li>at least 1 uppercase letter</li>
+        <li>at least 1 lowercase letter</li>
+        <li>at least 1 number </li>
+        <li>at least 1 special character "#-?-!-@-$-%-^-&-*-" </li>
+        </ul>
+        `),
+    rePassword: zod.string(),
     dateOfBirth: zod.coerce.date("date is requierd").refine((value)=>{
       const currentYear= new Date().getFullYear();
       const birthDate= value.getFullYear();
@@ -46,8 +55,7 @@ export default function SignUp() {
       return age>16
     },"your age is below 16"),
     gender: zod.string().nonempty("gender is requierd")
-  }).refine((values)=>{return values.rePassword===values.password;},
-              {path:["rePassword"],message:"Password didn't match"})
+  }).refine((values)=>values.rePassword==values.password,{path:["rePassword"],message:"password didn't match"})
 
   const {handleSubmit, register,control,formState,setError} = useForm({
   defaultValues:{
@@ -99,7 +107,7 @@ export default function SignUp() {
     
   }
 
-  return<div className="container mx-auto min-h-screen flex justify-center items-center">
+  return<div className="container pt-15 mx-auto min-h-screen flex justify-center items-center">
         <form onSubmit={handleSubmit(signUp)} className="w-full max-w-md mx-auto ">
       <Card className="w-full">
       <CardHeader>
@@ -142,9 +150,7 @@ export default function SignUp() {
               <Field>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
                 <Input id="password" type="password" aria-invalid={!!formState.errors.password?.message} {...register('password',{required:"password is required"})}  />
-                {!!formState.errors.password?.message&&<FieldError>
-                  {formState.errors.password?.message}
-                </FieldError>}
+                {!!formState.errors.password?.message&&<div className="text-xs text-red-400 my-2 [&>ul]:list-disc [&>ul]:list-inside" dangerouslySetInnerHTML={{ __html: formState.errors.password.message }}/>}
               </Field>
             </div>
 

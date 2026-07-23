@@ -79,10 +79,10 @@ export default function Notifications() {
         <div className="flex flex-col overflow-hidden border col-span-13 sm:col-span-11 sm:col-start-2  lg:col-span-5 lg:col-start-5  bg-[#252728]  rounded-lg mb-5">
             <div className="relative flex border-b">
 
-                <span onClick={()=>setUnRead(true)} className={`p-2 border-r ${unRead&&'bg-white/10 border-b text-blue-500'} hover:bg-white/10 cursor-pointer`}>All</span>
-                <span onClick={()=>setUnRead(false)} className={`p-2 ${!unRead&&'bg-white/10 border-b text-blue-500'} hover:bg-white/10 cursor-pointer`}>Unread</span>
+                <button onClick={()=>setUnRead(true)} className={`p-2 border-r ${unRead&&'bg-white/10 border-b text-blue-500'} hover:bg-white/10 cursor-pointer`}>All</button>
+                <button onClick={()=>setUnRead(false)} className={`p-2 ${!unRead&&'bg-white/10 border-b text-blue-500'} hover:bg-white/10 cursor-pointer`}>Unread</button>
 
-                <span onClick={markAllAsRead} className="absolute top-2.5 right-2 text-sm cursor-pointer text-blue-500 hover:underline" >Mark all as read</span>
+                <button onClick={markAllAsRead} className="absolute top-2.5 right-2 text-sm cursor-pointer text-blue-500 hover:underline" >Mark all as read</button>
                 </div>
             {notifications.length>0?notifications.map((notif)=>
             <div disabled={notif.entity?.unavailable} onClick={()=>{

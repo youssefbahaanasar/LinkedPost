@@ -1,19 +1,22 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "../ui/card";
-import { Bookmark, ChevronDown, ChevronUp, Edit, Heart, ImageIcon, ImagePlusIcon, MessageCircleMoreIcon, PencilIcon, ReplyIcon, Trash2Icon, TrashIcon, X } from "lucide-react";
+import { Bookmark, ChevronDown, ChevronUp, Edit, Heart, ImageIcon, ImagePlusIcon, MessageCircleMoreIcon, PencilIcon, Trash2Icon, TrashIcon, X } from "lucide-react";
 import ProfileHover from "../ProfileHover/ProfileHover";
 import { Textarea } from "../ui/textarea";
 import {useEffect, useRef, useState } from "react";
 import Cookies from 'js-cookie'
 import axios from "axios";
 import { Spinner } from "../ui/spinner";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Skeleton } from "../ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogMedia, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { Field, FieldGroup } from "../ui/field";
+import PostShare from "../PostShare/PostShare";
+import TopComment from "../TopComment/TopComment";
 
 
 export default function GetPosts(props) {   
@@ -28,6 +31,10 @@ export default function GetPosts(props) {
     const shareRef = useRef(null) 
     const [focus, setFocus] = useState(false)
     const [post , setPost] = useState(props.post)
+    const [showPostPhoto , setShowPostPhoto] = useState(false)
+    const [showCommentPhoto , setShowCommentPhoto] = useState(false)
+    const [bookmarked , setBookmarked] = useState(post.bookmarked)
+    const [loadingBookmark , setLoadingBookmark] = useState(false)
     const [deletedPost , setDeletedPost] = useState('')
     const [textComment, setTextComment] = useState('  ')
     const [replyCommentText, setReplyCommentText] = useState('  ')
@@ -57,27 +64,33 @@ export default function GetPosts(props) {
     let history = [];
     const updatedHistory = [];
 
-    if(post.topComment?.likes.length>0) history.push({id:post.topComment._id, likesCount:post.topComment.likes.length});
+    if(post.topComment?.likes.length>0) history.push({id:post.topComment._id, likes:post.topComment.likes});
     if(postComments.length>0){
       const allComments=postComments.filter((comment)=>comment.likes.length>0)
-      allComments.map((comment)=>{updatedHistory.push({id:comment._id, likesCount:comment.likes.length})})
+      allComments.map((comment)=>{updatedHistory.push({id:comment._id, likes:comment.likes})})
       setLikesHistory(updatedHistory);
     }else{
       setLikesHistory(history);
     }
-
  },[postComments])
-
+useEffect(()=>{
+  return () => {
+      document.body.classList.remove('overflow-hidden')
+      setShowPostPhoto(false)   
+    };
+},[])
  async function handleBookmark(postId) {
   try {
+    setLoadingBookmark('true')
     const response = await axios.put(`https://route-posts.routemisr.com/posts/${postId}/bookmark`,{},{
       headers:{Token:Cookies.get('userToken')}
     })
     console.log(response.data);
-    
+    setBookmarked(response.data.data.bookmarked);
   } catch (error) {
     console.log(error.response);
   }
+  setLoadingBookmark(false)
  }
  async function getCommentReplies(commentId) {
   if(repliesShowed==commentId){ setReplies([]); setRepliesShowed('');}
@@ -161,6 +174,7 @@ export default function GetPosts(props) {
   }
   async function getComments(postId) {
     setGettingComments(true);
+    document.body.classList.add('overflow-hidden');
     try {
       setPostId(post.id);
       const response = await axios.get(`https://route-posts.routemisr.com/posts/${postId}/comments?page=1&limit=10`,{headers:{
@@ -168,7 +182,6 @@ export default function GetPosts(props) {
       }});      
       setPostComments(response.data.data.comments);
       setGettingComments(false);
-      document.body.classList.add('overflow-hidden');
     } catch (error) {
       console.log(error.response);
     }
@@ -197,9 +210,11 @@ export default function GetPosts(props) {
       })
       console.log(response.data);
       let history = likesHistory.filter((comment)=>comment.id!=commentId);
-      setLikesHistory([...history,{id:commentId,likesCount:response.data.data.comment.likesCount}]);
-
-      console.log(likesHistory);
+      if(response.data.data.liked){
+        setLikesHistory([...history,{id:commentId,likes:response.data.data.comment.likes}]);
+      }else{
+        setLikesHistory([...history]);
+      }
       
     } catch (error) {
       console.log(error.response);
@@ -227,7 +242,7 @@ export default function GetPosts(props) {
     setIsLoading(true)
     const formData = new FormData();
     formData.append('content',replyCommentText)
-    if(replyCommentImageRef.current?.files[0])formData.append('image',commentImage);
+    if(replyCommentImageRef.current?.files[0])formData.append('image',replyCommentImageRef.current.files[0]);
     const response = await axios.post(`https://route-posts.routemisr.com/posts/${post._id}/comments/${commentId}/replies`,formData,{
       headers:{Token:Cookies.get('userToken')}
     })
@@ -243,25 +258,7 @@ export default function GetPosts(props) {
       setShowReplyBox(false)
       getCommentReplies(commentId)
   }
- async function sharePost(postId) {
-  try {
-    const response = await axios.post(`https://route-posts.routemisr.com/posts/${postId}/share`,{
-      'body':shareRef.current.value||' '
-    },{
-      headers:{
-        Token:Cookies.get('userToken'),
-        "Content-Type":"application/json"
-      }
-    })
-    console.log(response.data);
-    getUpdatedPostDetails();
-    setIsOpen(false);
-  } catch (error) {
-    console.log(error.response);
-    
-  }
-  
- }
+
  async function updatePost() {
   try {
     setIsLoading(true)
@@ -330,14 +327,13 @@ export default function GetPosts(props) {
 
   function handleMainCommentImage(e){
     setMainCommentHasImage(true);
-    setCommentImage(e.target.files[0])
+    setCommentImage(URL.createObjectURL(e.target.files[0]))
   }
   
   function handleSubCommentImage(e){
     setSubCommentHasImage(true);
     setCommentImage(URL.createObjectURL(e.target.files[0]))
   }
-  
   function handleReplyCommentImage(e){
     setReplyCommentHasImage(true);
     setCommentImageShow(URL.createObjectURL(e.target.files[0]))
@@ -354,12 +350,14 @@ export default function GetPosts(props) {
       setEditPhoto(photo)
     }
   }
-  console.log(showReplyBox);
   
   return<>
+{/* Post */}
   {deletedPost!=post._id&&<div key={post.user._id} className={`col-span-13 sm:col-span-11 sm:col-start-2  lg:col-span-5 lg:col-start-5 dark:bg-[#252728] rounded-lg`}>
       <div className={`relative`}>
-       
+
+  
+{/* Edit dialog */}
        <Dialog open={dialogOpen} onOpenChange={(open)=>{
               if(open){
                 setDialogOpen(true);
@@ -440,21 +438,23 @@ export default function GetPosts(props) {
               </DialogContent>
             </Dialog>
 
-       {post.user._id == Cookies.get('userId') &&<DropdownMenu >
+
+{/* ... edit , save and delete */}
+       {<DropdownMenu >
       <DropdownMenuTrigger className={`absolute top-2 right-2 cursor-pointer border-0 size-8 rounded-full hover:bg-white/10! `} render={<Button className={`bg-[#252728]! `} variant="outline"><i className="fa-solid fa-ellipsis scale-120"></i></Button>} />
       <DropdownMenuContent>
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={()=>dialog.current.click()} >
+          {post.user._id == Cookies.get('userId') &&<DropdownMenuItem onClick={()=>dialog.current.click()} >
             <PencilIcon />
                       Edit
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={()=>handleBookmark(post._id)}>
-            <Bookmark />
-            Save
-          </DropdownMenuItem>
+          </DropdownMenuItem>}
+          <Button className="flex items-center bg-inherit text-white w-full hover:bg-white/8 justify-start gap-2 p-0.5 cursor-pointer" onClick={()=>handleBookmark(post._id)}>
+            {loadingBookmark?<Spinner className={`animate-spin`}/>:<i className={`${bookmarked?"fa-solid":"fa-regular"} fa-bookmark`}></i>}
+            {bookmarked?"Saved":"Save"}
+          </Button>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
+        {post.user._id == Cookies.get('userId') &&<DropdownMenuSeparator />}
+        {post.user._id == Cookies.get('userId') &&<DropdownMenuGroup>
           
             <AlertDialog>
               <AlertDialogTrigger
@@ -480,45 +480,68 @@ export default function GetPosts(props) {
             </AlertDialog>
 
           
-        </DropdownMenuGroup>
+        </DropdownMenuGroup>}
       </DropdownMenuContent>
     </DropdownMenu>}
+        {/* Save Bookmark */}
+    {/* <div onClick={()=>handleBookmark(post._id)} className={` absolute flex items-center justify-center top-2 ${post.user._id == Cookies.get('userId')?'hidden':''} right-2 cursor-pointer border-0 size-8 rounded-full hover:bg-white/10! `}>
+    {loadingBookmark?<Spinner className={`animate-spin`}/>:<i className={`${bookmarked?"fa-solid":"fa-regular"} fa-bookmark`}></i>}
+    </div> */}
 
+
+{/* Post Header (Info) */}
           <div className="flex justify-start items-center w-full p-2 ">
             <div className="flex gap-2">
-            <div className="bg-[#E5E8EB] w-10 h-10 rounded-full">
-              <img className="rounded-full w-10 h-10 object-cover" src={post.user.photo} alt="" />
+            <div className="bg-[#E5E8EB] size-10 shrink-0 rounded-full">
+              <img className="rounded-full size-10 shrink-0 object-cover" src={post.user.photo} alt="" />
             </div>
-            <div className="flex relative justify-end flex-col">
-              <div className="flex">
+            <div className="flex container relative justify-end flex-col">
+              <div className="flex flex-col sm:flex-row sm:items-center">
               <ProfileHover userId={post.user._id} name={post.user.name} photo={post.user.photo} username={post.user.username} />
-              {(post.body=='updated profile picture.'||post.body=='updated cover photo.')&&<span className="text-white/60 ps-1">{post.body}</span>}
+              {(post.body=='updated profile picture.'||post.body=='updated cover photo.')&&<span className="text-sm text-white/60 -mt-1 mb-1 sm:m-0 sm:ps-1">{post.body}</span>}
             </div>
-              <div className="flex gap-1 dark:text-[#b0b3b8] text-[#65686c]">
+              <div className="flex gap-1  dark:text-[#b0b3b8] text-[#65686c]">
                 <span className="text-xs">{handleDate(post.createdAt)}</span>
-                <span><sup className="font-bold">.</sup></span>
+                <span className="font-bold"><sup >·</sup></span>
                 <span className="text-xs">{post.privacy}</span>
               </div>
                 {post.bookmarked&&
-            <div className="flex -bottom-0.5 left-16 rounded-md px-1 absolute bg-[#0066ff56]  items-center gap-0.5  mb-2  justify-center w-fit text-xs">
+            <div className="flex -bottom-1 left-18 rounded-md px-1 absolute bg-[#0066ff56]  items-center gap-0.5  mb-2  justify-center w-fit text-xs">
               <span className=" py-1 px-0.5  rounded-sm "> <Bookmark fill="white" className="size-3"/> </span> Saved
             </div>
             }
             </div>
             </div>
           </div>
-          
-          {(post.body!='updated profile picture.'&&post.body!='updated cover photo.')&&<p className="text-xl p-2 pt-0">{post.body}</p>}
 
-          {post.image&&!post.isShare&&<AspectRatio className="aspect-video  bg-muted rounded-b-lg dark:bg-black">
+
+{/* Post body - Regular (Content) */}
+          {(post.body!='updated profile picture.'&&post.body!='updated cover photo.')&&<p className="text-xl p-2 pt-0">{post.body}</p>}
+          {post.image&&!post.isShare&&<AspectRatio onClick={()=>{setShowPostPhoto(!showPostPhoto);document.body.classList.toggle('overflow-hidden')}} className={`dark:bg-black aspect-video rounded-b-lg `}>
           <img
             src={post.image}
             ref={imageRef}
             alt="Photo"
             fill={`true`}
-            className="aspect-video w-full object-cover object-center "
+            className={`aspect-video object-cover w-full  object-center `}
           />
         </AspectRatio>}
+          {post.image&&!post.isShare&&showPostPhoto&&<AspectRatio onClick={()=>{setShowPostPhoto(!showPostPhoto);document.body.classList.toggle('overflow-hidden')}} className={`z-99 fixed top-0 bottom-0 left-0 right-0 bg-black/80 flex justify-center `}>
+          <img
+            onClick={(e)=>e.stopPropagation()}
+            src={post.image}
+            ref={imageRef}
+            alt="Photo"
+            fill={`true`}
+            className={`aspect-video object-contain w-3/5  object-center `}
+          >
+            
+          </img>
+            <X className="absolute top-10 right-20 size-8 cursor-pointer hover:bg-white/20 bg-white/10 rounded-full p-1"/>
+        </AspectRatio>}
+
+
+{/* Post body - Shared (Content) */}
         {post.isShare&&
         <div className="bg-[#252728] px-2 w-full">
 
@@ -539,13 +562,26 @@ export default function GetPosts(props) {
             </div>
           </div>
           <p className="text-xl p-2">{post.sharedPost.body}</p>
-          {post.sharedPost.image&&<AspectRatio className="aspect-video bg-muted rounded-b-lg dark:bg-black">
+
+         {post.sharedPost.image&&<AspectRatio onClick={()=>{setShowPostPhoto(!showPostPhoto);document.body.classList.toggle('overflow-hidden')}} className={`dark:bg-black aspect-video rounded-b-lg `}>
           <img
             src={post.sharedPost.image}
+            ref={imageRef}
             alt="Photo"
             fill={`true`}
-            className="aspect-video w-full rounded-b-lg  object-cover object-center "
+            className={`aspect-video object-cover w-full  object-center `}
           />
+        </AspectRatio>}
+          {post.sharedPost.image&&showPostPhoto&&<AspectRatio onClick={()=>{setShowPostPhoto(!showPostPhoto);document.body.classList.toggle('overflow-hidden')}} className={`z-99 fixed top-0 bottom-0 left-0 right-0 bg-black/80 flex justify-center `}>
+          <img
+            onClick={(e)=>e.stopPropagation()}
+            src={post.sharedPost.image}
+            ref={imageRef}
+            alt="Photo"
+            fill={`true`}
+            className={`aspect-video object-contain w-3/5  object-center `}
+          />
+            <X className="absolute top-10 right-20 size-8 cursor-pointer hover:bg-white/20 bg-white/10 rounded-full p-1"/>
         </AspectRatio>}
   
         </div>
@@ -553,123 +589,23 @@ export default function GetPosts(props) {
         }
 
 
+{/* Post Actions (Like, Comments and Share) */}
         <CardFooter className={`border-0 flex-col pb-2 items-start`}>
           <div className="mb-2">
           <Button onClick={()=>{likePost()}} className={`bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14 `}> <Heart className={`size-5 ${post.likes?.includes(Cookies.get('userId'))?'fill-red-500 stroke-0':'stroke-1'}`}/>  <span className="text-xs" >{post.likesCount} </span> </Button>
           <Button onClick={()=>{getComments(post.id)}} disabled={postId}  className={`bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14`}> <MessageCircleMoreIcon className="size-5 stroke-1"/> <span className="text-xs" >{post.commentsCount} </span> </Button>
-        {!post.isShare&&<Dialog  open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger render={<Button className={`bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14`}> <ReplyIcon className="size-5 rotate-y-180 stroke-1"/> <span className="text-xs" >{post.sharesCount} </span> </Button>} />
-        <DialogContent className="bg-[#252728] sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className={`text-center border-b pb-2`} >Sharing {post.user.name.split(' ',1)}'s Post</DialogTitle>
-            <DialogDescription>
-              <Textarea ref={shareRef} placeholder='Say something about this post....' className={`text-white bg-[#252728]! min-h-0 resize-none max-h-50 scrollbar-thumb-chart-1 text-md break-all border-0 focus-visible:ring-0`} />
-            </DialogDescription>
-          </DialogHeader>
 
-        <div className={`border rounded-lg`}>
-          <div className="flex justify-start items-center w-full p-2">
-            <div className="flex gap-2">
-            <div className="bg-[#E5E8EB] w-10 h-10 rounded-full">
-              <img className="rounded-full w-10 h-10 object-cover" src={post.user.photo} alt="" />
-            </div>
-            <div className="flex justify-end flex-col">
-              <ProfileHover userId={post.user._id} name={post.user.name} photo={post.user.photo} username={post.user.username} />
-              <div className="flex gap-1 dark:text-[#b0b3b8] text-[#65686c]">
-                <span className="text-xs">{handleDate(post.createdAt)}</span>
-                <span><sup className="font-bold">.</sup></span>
-                <span className="text-xs">{post.privacy}</span>
-              </div>
-            </div>
-            </div>
-          </div>
-          <p className="text-xl p-2">{post.body}</p>
-          {post.image&&<AspectRatio className="aspect-video bg-muted rounded-b-lg dark:bg-black">
-          <img
-            src={post.image}
-            alt="Photo"
-            fill={`true`}
-            className="aspect-video w-full rounded-b-lg object-cover object-center "
-          />
-        </AspectRatio>}
- 
-        </div>
-          <DialogFooter className="justify-end">
-            <Button onClick={()=>sharePost(post.id)} className={`bg-[#0866FF] hover:bg-[#337aeb] cursor-pointer text-white`} type="button">Share now</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>}
-      {post.isShare&&<Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger render={<Button className={`bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14`}> <ReplyIcon className="size-5 rotate-y-180 stroke-1"/> <span className="text-xs" >{post.sharesCount} </span> </Button>} />
-        <DialogContent className="bg-[#252728] sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className={`text-center border-b pb-2`} >Sharing {post.sharedPost.user.name.split(' ',1)}'s Post</DialogTitle>
-            <DialogDescription>
-              <Textarea ref={shareRef} placeholder='Say something about this post....' className={`text-white bg-[#252728]! min-h-0 resize-none max-h-50 scrollbar-thumb-chart-1 text-md break-all border-0 focus-visible:ring-0`} />
-            </DialogDescription>
-          </DialogHeader>
 
-        <div className={`border rounded-lg`}>
-          <div className="flex justify-start items-center w-full p-2">
-            <div className="flex gap-2">
-            <div className="bg-[#E5E8EB] w-10 h-10 rounded-full">
-              <img className="rounded-full w-10 h-10 object-cover" src={post.sharedPost.user.photo} alt="" />
-            </div>
-            <div className="flex justify-end flex-col">
-              <ProfileHover userId={post.sharedPost.user._id} name={post.sharedPost.user.name} photo={post.sharedPost.user.photo} username={post.sharedPost.user.username} />
-              <div className="flex gap-1 dark:text-[#b0b3b8] text-[#65686c]">
-                <span className="text-xs">{handleDate(post.sharedPost.createdAt)}</span>
-                <span><sup className="font-bold">.</sup></span>
-                <span className="text-xs">{post.sharedPost.privacy}</span>
-              </div>
-            </div>
-            </div>
-          </div>
-          <p className="text-xl p-2">{post.sharedPost.body}</p>
-          {post.sharedPost.image&&<AspectRatio className="aspect-video bg-muted rounded-b-lg dark:bg-black">
-          <img
-            src={post.sharedPost.image}
-            alt="Photo"
-            fill={`true`}
-            className="aspect-video w-full rounded-b-lg object-cover object-center "
-          />
-        </AspectRatio>}
-        </div>
-
-          <DialogFooter className="justify-end">
-            <Button onClick={()=>sharePost(post.sharedPost.id)} className={`bg-[#0866FF] hover:bg-[#337aeb] cursor-pointer text-white`} type="button">Share now</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>}
+{/* Share Post Action */}
+        <PostShare shareRef={shareRef} getUpdatedPostDetails={getUpdatedPostDetails} post={post} isOpen={isOpen} setIsOpen={setIsOpen} />
           </div>
 
-          {post.topComment&&
-          <div className="flex gap-1 px-1">
-              <div className="w-7 h-7 rounded-full object-cover shrink-0 dark:bg-[#E5E8EB]">
-                  <img src= {post.topComment?.commentCreator.photo} className="w-7 h-7 rounded-full object-cover" alt="" />
-              </div>
-              <div className="flex flex-col">
-              <div className=" rounded-lg min-w-25  ">
-                <div className=" ps-1">
-                  <div className="flex text-sm">
-              <ProfileHover userId={post.topComment.commentCreator._id} name={post.topComment.commentCreator.name} photo={post.topComment.commentCreator.photo} username={post.topComment.commentCreator.username} />
-               <span  className="text-xs ps-1 text-white/60 mt-1 items-start underline-offset-1 font-semibold " > · {handleDate(post.topComment.createdAt)}</span>
-                  </div>
-              <p className=" ps-1 text-md font-extralight">
-              {post.topComment?.content}
-              </p>
-                </div>
-              <img src={post.topComment.image} alt="" className="max-w-60 rounded-lg" />
-              </div>
-              <div className="flex gap-2 ps-1">
-                 
-                  <span onClick={()=>{likeComment(post.topComment._id); }} variant="link" className={`text-[10px] hover:underline p-0 mt-0.5 items-start  underline-offset-1 cursor-pointer ${likesHistory.some(item => item.id==post.topComment._id)&&'text-blue-500'} `}> <p>{(likesHistory.find(item=>item.id==post.topComment._id)?.likesCount>0&&likesHistory.find(item=>item.id==post.topComment._id).likesCount)} {likesHistory.some(item=>item.id==post.topComment._id)?<i className="fa-solid fa-thumbs-up"></i>:"Like"}</p> </span>
-                  <span onClick={replyComment} variant="link" className="text-[10px] hover:underline p-0 mt-0.5 items-start underline-offset-1 cursor-pointer ">Reply</span>
-              </div>
-              <span onClick={()=>{getComments(post.id)}} className="text-xs cursor-pointer hover:underline hover:text-blue-400" >view all comments</span>
-              </div>
-          </div>}
 
+{/* Showing Top Comment */}
+          <TopComment commentImageShow={commentImageShow} handleReplyCommentImage={handleReplyCommentImage} isLoading={isLoading} replyCommentHasImage={replyCommentHasImage} replyCommentImageRef={replyCommentImageRef} setCommentImageShow={setCommentImageShow} setFocus={setFocus} setReplyCommentHasImage={setReplyCommentHasImage} setReplyCommentText={setReplyCommentText} textComment={textComment} handleReplyCommentImageClick={handleReplyCommentImageClick} focus={focus} showReplyBox={showReplyBox} setShowReplyBox={setShowReplyBox} imageRef={imageRef} getComments={getComments} likeComment={likeComment} likesHistory={likesHistory} post={post} replyComment={replyComment}/>
+
+
+{/* Write Comment Filed */}
         <div className={`flex items-start gap-1.5 w-full p-1.5 `}>
           <div className="shrink-0 bg-[#E5E8EB] w-8 h-8 rounded-full">
               <img className="rounded-full  w-8 h-8 object-cover" src={props.photo} alt="" />
@@ -688,18 +624,26 @@ export default function GetPosts(props) {
           </div>
             </div>
         </div>
-            {mainCommentHasImage&&<img src={commentImage} className="ms-11 max-w-50" alt="" />}
+            {mainCommentHasImage&&<div className="relative ms-11">
+              <X onClick={()=>{setMainCommentHasImage(false); setCommentImage('');  mainCommentImageRef.current.value=''; }} className="absolute top-0 right-0 bg-black/50 hover:bg-black/40 cursor-pointer rounded-full"/>
+              <img src={commentImage} className="max-w-80" alt="" />
+            </div>
+            }
         </CardFooter>
       </div>
   </div>}
  
+
+{/* Show post details */}
  {deletedPost!=post._id&& postId===post.id&& <div onClick={parentClose} key={post.user.id} className={` ${postId===post.id?'fixed top-0 left-0 bottom-0 right-0 flex items-center justify-center col-span-12 col-start-1 px-2 bg-black/40 z-9':'hidden'} rounded-lg`}>
-       <div onClick={handleClose} className='relative w-xl dark:bg-[#252728] rounded-lg max-h-180'>
+       <div onClick={handleClose} className='relative w-xl dark:bg-[#252728] rounded-lg max-h-200'>
+
+
+{/* Post Header - Detailed */}
         <div className="sticky top-0 z-101 dark:bg-[#252728] rounded-t-lg w-full flex items-center justify-center py-3 border-b">
            <h2 className="font-semibold"> {post.user.name.split(' ',1)}'s Post</h2>
-           <span onClick={parentClose} className="absolute top-2 hover:bg-white/10 rounded-full right-2 p-1 cursor-pointer" > <X/> </span>
+           <button onClick={parentClose} className="absolute top-2 hover:bg-white/10 rounded-full right-2 p-1 cursor-pointer" > <X/> </button>
         </div>
-
        <div className=" max-h-150 rounded-lg scrollbar-thin scrollbar-thumb-chart-1 overflow-auto">
         <div className="flex justify-start items-center w-full p-2 pb-1">
           <div className="flex gap-2">
@@ -716,17 +660,36 @@ export default function GetPosts(props) {
           </div>
           </div>
         </div>
+
+
+{/* Post body Regular - Detailed */}
          <p className="text-lg ps-2">{post.body}</p>
         
-        {post.image&&!post.isShare&&<AspectRatio className="aspect-video bg-muted rounded-b-lg dark:bg-black">
-        <img
-          src={post.image}
-          alt="Photo"
-          fill={`true`}
-          className="aspect-video w-full  object-cover object-center "
-        />
-      </AspectRatio>}
+        {post.image&&!post.isShare&&<AspectRatio onClick={()=>{setShowPostPhoto(!showPostPhoto);document.body.classList.toggle('overflow-hidden')}} className={`dark:bg-black aspect-video rounded-b-lg `}>
+          <img
+            src={post.image}
+            ref={imageRef}
+            alt="Photo"
+            fill={`true`}
+            className={`aspect-video object-cover w-full  object-center `}
+          />
+        </AspectRatio>}
+          {post.image&&!post.isShare&&showPostPhoto&&<AspectRatio onClick={()=>{setShowPostPhoto(!showPostPhoto);document.body.classList.toggle('overflow-hidden')}} className={`z-99 fixed top-0 bottom-0 left-0 right-0 bg-black/80 flex justify-center `}>
+          <img
+            onClick={(e)=>e.stopPropagation()}
+            src={post.image}
+            ref={imageRef}
+            alt="Photo"
+            fill={`true`}
+            className={`aspect-video object-contain w-3/5  object-center `}
+          >
+            
+          </img>
+            <X className="absolute top-10 right-20 size-8 cursor-pointer hover:bg-white/20 bg-white/10 rounded-full p-1"/>
+        </AspectRatio>}
       
+
+{/* Post body Shared - Detailed */}
       {post.isShare&&<div className="bg-[#252728] px-2 w-full">
 
         <div className={`border rounded-lg`}>
@@ -746,117 +709,43 @@ export default function GetPosts(props) {
             </div>
           </div>
           <p className="text-lg ps-2 pb-1">{post.sharedPost.body}</p>
-          {post.sharedPost.image&&<AspectRatio className="aspect-video bg-muted rounded-b-lg dark:bg-black">
+           {post.sharedPost.image&&<AspectRatio onClick={()=>{setShowPostPhoto(!showPostPhoto);document.body.classList.toggle('overflow-hidden')}} className={`dark:bg-black aspect-video rounded-b-lg `}>
           <img
             src={post.sharedPost.image}
+            ref={imageRef}
             alt="Photo"
             fill={`true`}
-            className="aspect-video w-full rounded-b-lg  object-cover object-center "
+            className={`aspect-video object-cover w-full  object-center `}
           />
+        </AspectRatio>}
+          {post.sharedPost.image&&showPostPhoto&&<AspectRatio onClick={()=>{setShowPostPhoto(!showPostPhoto);document.body.classList.toggle('overflow-hidden')}} className={`z-99 fixed top-0 bottom-0 left-0 right-0 bg-black/80 flex justify-center `}>
+          <img
+            onClick={(e)=>e.stopPropagation()}
+            src={post.sharedPost.image}
+            ref={imageRef}
+            alt="Photo"
+            fill={`true`}
+            className={`aspect-video object-contain w-3/5  object-center `}
+          >
+            
+          </img>
+            <X className="absolute top-10 right-20 size-8 cursor-pointer hover:bg-white/20 bg-white/10 rounded-full p-1"/>
         </AspectRatio>}
   
         </div>
         </div>
         }
+
+
+{/* Post actions - Detailed */}
        <CardFooter className={`border-0 flex-col items-start`}>
         <div className="">
         <Button onClick={likePost} className={` bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14`}> <Heart className={`size-5 ${post.likes?.includes(Cookies.get('userId'))?'fill-red-500 stroke-0':'stroke-1'}`}/> <span className="text-xs" >{post.likesCount} </span> </Button>
         <Button onClick={()=>{getComments(post.id)}} disabled={postId} className={`bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14`}> <MessageCircleMoreIcon className="size-5 stroke-1"/><span className="text-xs" >{post.commentsCount} </span> </Button>
-        {/* <Button className={`bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14`}> <ReplyIcon className="size-5 rotate-y-180 stroke-1"/>  <span className="text-xs" >{sharesCount} </span> </Button> */}
-         {!post.isShare&&<Dialog  open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger render={<Button className={`bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14`}> <ReplyIcon className="size-5 rotate-y-180 stroke-1"/> <span className="text-xs" >{post.sharesCount} </span> </Button>} />
-        <DialogContent className="bg-[#252728] sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className={`text-center border-b pb-2`} >Sharing {post.user.name.split(' ',1)}'s Post</DialogTitle>
-            <DialogDescription>
-              <Textarea ref={shareRef} placeholder='Say something about this post....' className={`text-white bg-[#252728]! min-h-0 resize-none max-h-50 scrollbar-thumb-chart-1 text-md break-all border-0 focus-visible:ring-0`} />
-            </DialogDescription>
-          </DialogHeader>
-
-        <div className={`border rounded-lg`}>
-          <div className="flex justify-start items-center w-full p-2">
-            <div className="flex gap-2">
-            <div className="bg-[#E5E8EB] w-10 h-10 rounded-full">
-              <img className="rounded-full w-10 h-10 object-cover" src={post.user.photo} alt="" />
-            </div>
-            <div className="flex justify-end flex-col">
-              <ProfileHover userId={post.user._id} name={post.user.name} photo={post.user.photo} username={post.user.username} />
-              <div className="flex gap-1 dark:text-[#b0b3b8] text-[#65686c]">
-                <span className="text-xs">{handleDate(post.createdAt)}</span>
-                <span><sup className="font-bold">.</sup></span>
-                <span className="text-xs">{post.privacy}</span>
-              </div>
-            </div>
-            </div>
-          </div>
-          <p className="text-xl p-2">{post.body}</p>
-          {post.image&&<AspectRatio className="aspect-video bg-muted rounded-b-lg dark:bg-black">
-          <img
-            src={post.image}
-            alt="Photo"
-            fill={`true`}
-            className="aspect-video w-full  object-cover object-center "
-          />
-        </AspectRatio>}
-        <CardFooter className={`border-0 flex-col items-start`}>
-          <div className="flex mb-2">
-          <p  className={`bg-inherit text-white/80 hover:bg-inherit flex items-center justify-center gap-1  rounded-t-none h-10 w-14 `}> <Heart className="size-5 stroke-1"/>  <span className="text-xs" >{post.likesCount} </span> </p>
-          <p  className={`bg-inherit text-white/80 hover:bg-inherit flex items-center justify-center gap-1  rounded-t-none h-10 w-14`}> <MessageCircleMoreIcon className="size-5 stroke-1"/> <span className="text-xs" >{post.commentsCount} </span> </p>
-          <p className={`bg-inherit text-white/80 hover:bg-inherit flex items-center justify-center gap-1  rounded-t-none h-10 w-14`}> <ReplyIcon className="size-5 rotate-y-180 stroke-1"/> <span className="text-xs" >{post.sharesCount} </span> </p>
-          </div>
-        </CardFooter>
+        <PostShare getUpdatedPostDetails={getUpdatedPostDetails} isOpen={isOpen} post={post} setIsOpen={setIsOpen} shareRef={shareRef} />
         </div>
 
-          <DialogFooter className="justify-end">
-            <Button onClick={()=>sharePost(post.id)} className={`bg-[#0866FF] hover:bg-[#337aeb] cursor-pointer text-white`} type="button">Share now</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>}
-
-         {post.isShare&&<Dialog  open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger render={<Button className={`bg-inherit text-white/80 hover:bg-white/10 cursor-pointer rounded-t-none h-10 w-14`}> <ReplyIcon className="size-5 rotate-y-180 stroke-1"/> <span className="text-xs" >{post.sharesCount} </span> </Button>} />
-        <DialogContent className="bg-[#252728] sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className={`text-center border-b pb-2`} >Sharing {post.sharedPost.user.name.split(' ',1)}'s Post</DialogTitle>
-            <DialogDescription>
-              <Textarea ref={shareRef} placeholder='Say something about this post....' className={`text-white bg-[#252728]! min-h-0 resize-none max-h-50 scrollbar-thumb-chart-1 text-md break-all border-0 focus-visible:ring-0`} />
-            </DialogDescription>
-          </DialogHeader>
-
-        <div className={`border rounded-lg`}>
-          <div className="flex justify-start items-center w-full p-2">
-            <div className="flex gap-2">
-            <div className="bg-[#E5E8EB] w-10 h-10 rounded-full">
-              <img className="rounded-full w-10 h-10 object-cover" src={post.sharedPost.user.photo} alt="" />
-            </div>
-            <div className="flex justify-end flex-col">
-              <ProfileHover userId={post.sharedPost.user._id} name={post.sharedPost.user.name} photo={post.sharedPost.user.photo} username={post.sharedPost.user.username} />
-              <div className="flex gap-1 dark:text-[#b0b3b8] text-[#65686c]">
-                <span className="text-xs">{handleDate(post.sharedPost.createdAt)}</span>
-                <span><sup className="font-bold">.</sup></span>
-                <span className="text-xs">{post.sharedPost.privacy}</span>
-              </div>
-            </div>
-            </div>
-          </div>
-          <p className="text-xl p-2">{post.sharedPost.body}</p>
-          {post.sharedPost.image&&<AspectRatio className="aspect-video bg-muted rounded-b-lg dark:bg-black">
-          <img
-            src={post.sharedPost.image}
-            alt="Photo"
-            fill={`true`}
-            className="aspect-video w-full rounded-b-lg object-cover object-center "
-          />
-        </AspectRatio>}
-        </div>
-
-          <DialogFooter className="justify-end">
-            <Button onClick={()=>sharePost(post.sharedPost.id)} className={`bg-[#0866FF] hover:bg-[#337aeb] cursor-pointer text-white`} type="button">Share now</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>}
-        </div>
-
+{/* Comments and Replies */}
         {!gettingComments&&!isLoading?(postComments.length!=0?postComments.map((comment,index)=>(
          <div key={index} className="flex px-1 mb-3">
             <div className="size-7 rounded-full flex  shrink-0 object-cover dark:bg-[#E5E8EB]">
@@ -874,12 +763,25 @@ export default function GetPosts(props) {
             </p>
             </div>
 
-            {comment.image&&<img src={comment.image} alt="" className="max-w-xs rounded-lg" />}
+            {comment.image&&<img onClick={()=>{setShowCommentPhoto(true);document.body.classList.add('overflow-hidden')}} src={comment.image} alt="" className="max-w-xs rounded-lg" />}
+          {comment.image&&showCommentPhoto&&<AspectRatio onClick={()=>{setShowCommentPhoto(false)}} className={`z-999 fixed top-0 bottom-0 left-0 right-0 bg-black/80 flex justify-center `}>
+          <img
+            onClick={(e)=>e.stopPropagation()}
+            src={comment.image}
+            ref={imageRef}
+            alt="Photo"
+            fill={`true`}
+            className={`aspect-video object-contain w-3/5  object-center `}
+          >
+            
+          </img>
+            <X className="absolute top-10 right-20 size-8 cursor-pointer hover:bg-white/20 bg-white/10 rounded-full p-1"/>
+        </AspectRatio>}
             </div>
             <div className="flex gap-2 ps-1">
-                <span onClick={()=>{likeComment(comment._id); }} className={`text-[10px] hover:underline p-0 mt-1 items-start underline-offset-1 cursor-pointer ${likesHistory.some(item => item.id==comment._id&&item.likesCount>0)&&'text-blue-500'} `}> <p>{(likesHistory.find(item=>item.id==comment._id)?.likesCount>0&&likesHistory.find(item=>item.id==comment._id).likesCount)} {likesHistory.some(item=> item.id==comment._id&&item.likesCount>0)?<i className="fa-solid fa-thumbs-up"></i>:'Like'} </p> </span>
-                <span onClick={()=>setShowReplyBox(comment._id)} className="text-[10px] hover:underline p-0 mt-1 items-start underline-offset-1 cursor-pointer "> Reply</span>
-                {(comment.repliesCount>0)&&<span onClick={()=>getCommentReplies(comment._id)} className="text-[10px] hover:underline p-0 mt-1 flex items-center gap-0.5 underline-offset-1 cursor-pointer "> {repliesShowed==comment._id?'hide':`Show ${comment.repliesCount}`}  replys {repliesShowed==comment._id?<ChevronUp className="size-3"/>:<ChevronDown className="size-3"/>} </span>}
+                <button onClick={()=>{likeComment(comment._id); }} className={`text-[10px] hover:underline p-0 mt-1 items-start underline-offset-1 cursor-pointer ${likesHistory.some(item => item.id==comment._id&&item.likes.includes(Cookies.get('userId')))&&'text-blue-500'} `}> <p>{(likesHistory.find(item=>item.id==comment._id)?.likes.length>0&&likesHistory.find(item=>item.id==comment._id).likes.length)} {likesHistory.some(item=> item.id==comment._id&&item.likes.includes(Cookies.get('userId')))?<i className="fa-solid fa-thumbs-up"></i>:'Like'} </p> </button>
+                <button onClick={()=>setShowReplyBox(comment._id)} className="text-[10px] hover:underline p-0 mt-1 items-start underline-offset-1 cursor-pointer "> Reply</button>
+                {(comment.repliesCount>0)&&<button onClick={()=>getCommentReplies(comment._id)} className="text-[10px] hover:underline p-0 mt-1 flex items-center gap-0.5 underline-offset-1 cursor-pointer "> {repliesShowed==comment._id?'hide':`Show ${comment.repliesCount}`}  replys {repliesShowed==comment._id?<ChevronUp className="size-3"/>:<ChevronDown className="size-3"/>} </button>}
             </div>
             {showReplyBox==comment._id&&
                     <div className={` relative flex flex-col items-start gap-1.5 min-w-60 w-full py-1.5 `}>
@@ -898,8 +800,9 @@ export default function GetPosts(props) {
                         </div>
                           </div>
                           {replyCommentHasImage&&
-                          <div className="w-fit">
-                          <img src={commentImageShow} className=" max-w-40  rounded-lg "  alt="" /> 
+                          <div className="relative w-fit">
+                             <X onClick={()=>{setReplyCommentHasImage(false); setCommentImageShow('');  replyCommentImageRef.current.value=''; }} className="absolute top-0 right-0 bg-black/50 hover:bg-black/40 cursor-pointer rounded-full"/>
+                          <img src={commentImageShow} className=" max-w-40 "  alt="" /> 
                         </div>}
                     </div>
                     }
@@ -927,7 +830,7 @@ export default function GetPosts(props) {
                 {reply?.image&&<img src={reply.image} alt="" className="max-w-xs rounded-lg" />}
                 </div>
                 <div className="flex gap-2 ps-1">
-                    <span onClick={()=>{likeReplyComment(reply._id); }} className={`text-[10px] hover:underline p-0 mt-1 items-start underline-offset-1 cursor-pointer ${repliesLikesHistory.some(item => ((item.id==reply._id)&&item.likes?.includes(Cookies.get('userId'))) )&&'text-blue-500'} `}> <p>{(repliesLikesHistory.find(item=>item.id==reply._id)?.likes?.length>0&&repliesLikesHistory.find(item=>item.id==reply._id).likes?.length)} {repliesLikesHistory.some(item=> (item.id==reply._id)&&item.likes?.includes(Cookies.get('userId')))?<i className="fa-solid fa-thumbs-up"></i>:'Like'} </p> </span>
+                    <button onClick={()=>{likeReplyComment(reply._id); }} className={`text-[10px] hover:underline p-0 mt-1 items-start underline-offset-1 cursor-pointer ${repliesLikesHistory.some(item => ((item.id==reply._id)&&item.likes?.includes(Cookies.get('userId'))) )&&'text-blue-500'} `}> <p>{(repliesLikesHistory.find(item=>item.id==reply._id)?.likes?.length>0&&repliesLikesHistory.find(item=>item.id==reply._id).likes?.length)} {repliesLikesHistory.some(item=> (item.id==reply._id)&&item.likes?.includes(Cookies.get('userId')))?<i className="fa-solid fa-thumbs-up"></i>:'Like'} </p> </button>
                 </div>
             </div>
                     
@@ -959,12 +862,12 @@ export default function GetPosts(props) {
       </div>
     </div>
       </div>
-        
         }
 
        </CardFooter>
        </div>
-       
+
+    {/* Write Comment */}
        <div className={` relative flex items-start gap-1.5 w-full p-1.5 `}>
           <div className="shrink-0 bg-[#E5E8EB] w-8 h-8 rounded-full">
               <img className="rounded-full  w-8 h-8 object-cover" src={props.photo} alt="" />
@@ -982,11 +885,13 @@ export default function GetPosts(props) {
                     </div>
           </div>
             </div>
-            {subCommentHasImage&&
-            <div className="absolute w-fit pt-2 pr-2 bg-white/20  bottom-1/1">
-             <img src={commentImage} className=" max-w-40  rounded-lg "  alt="" /> 
-            </div>}
+
         </div>
+              {subCommentHasImage&&
+              <div className="relative w-fit p-2 ">
+                <X onClick={()=>{setSubCommentHasImage(false); setCommentImage('');  subCommentImageRef.current.value=''; }} className="absolute top-0 right-0 bg-black/50 hover:bg-black/40 cursor-pointer rounded-full"/>
+              <img src={commentImage} className=" max-w-30 "  alt="" /> 
+              </div>}
         
         
        </div>

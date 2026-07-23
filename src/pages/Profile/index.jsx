@@ -23,12 +23,12 @@ import {
   ChevronUp,
   Circle,
   DoorOpenIcon,
-  Edit,
   FlameIcon,
   Image,
   ImagePlusIcon,
   PenBoxIcon,
   PencilLineIcon,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useParams } from "react-router-dom";
@@ -364,9 +364,9 @@ console.log();
 
       <div className="grid grid-cols-12 dark:bg-[#1C1C1D] pb-10  pt-2 md:py-5 md:gap-3">
       <div className="flex md:hidden justify-around border-b col-span-12 bg-[#252728]">
-          <span onClick={()=>setShow('all')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='all'&&'text-blue-500 border-b border-blue-500'} `} >All</span>
-          <span onClick={()=>setShow('posts')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='posts'&&'text-blue-500 border-b border-blue-500'} `} >Posts</span>
-          <span onClick={()=>setShow('about')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='about'&&'text-blue-500 border-b border-blue-500'} `} >About</span>
+          <button onClick={()=>setShow('all')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='all'&&'text-blue-500 border-b border-blue-500'} `} >All</button>
+          <button onClick={()=>setShow('posts')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='posts'&&'text-blue-500 border-b border-blue-500'} `} >Posts</button>
+          <button onClick={()=>setShow('about')} className={`w-full text-center py-3 cursor-pointer hover:bg-white/10 ${show==='about'&&'text-blue-500 border-b border-blue-500'} `} >About</button>
         </div>
 {/*  left */}
         {(show=='all'||show=='about')&&<div className="col-span-12  md:col-span-4 md:col-start-1 lg:col-span-3 lg:col-start-3 grow-0 h-fit  ">
@@ -382,7 +382,7 @@ console.log();
     {/* Followers */}
           <div className="flex flex-col bg-[#252728] p-3 py-5 md:mt-3 md:rounded-lg">
           <h3 className="relative text-md font-semibold">Followers
-            <span onClick={()=>navigate(`/followers/${profile.id}`)} className="absolute px-2 py-1 top-0 right-0 text-sm font-light text-blue-500 rounded-lg cursor-pointer hover:bg-white/10">See all</span>
+            <button onClick={()=>navigate(`/followers/${profile.id}`)} className="absolute px-2 py-1 top-0 right-0 text-sm font-light text-blue-500 rounded-lg cursor-pointer hover:bg-white/10">See all</button>
           </h3>
           <p className='mb-2 text-sm text-gray-300/60'> {profile.followersCount} Friends</p>
           <div className="grid grid-cols-6 gap-2">
@@ -401,7 +401,7 @@ console.log();
     {/* Following */}
           <div className=" bg-[#252728] p-3 py-5 md:mt-3 md:rounded-lg">
           <h3 className="relative text-md font-semibold">Following
-            <span onClick={()=>navigate(`/followings/${profile.id}`)} className="absolute px-2 py-1 top-0 right-0 text-sm font-light text-blue-500 rounded-lg cursor-pointer hover:bg-white/10">See all</span>
+            <button onClick={()=>navigate(`/followings/${profile.id}`)} className="absolute px-2 py-1 top-0 right-0 text-sm font-light text-blue-500 rounded-lg cursor-pointer hover:bg-white/10">See all</button>
           </h3>
           <p className='mb-2 text-sm text-gray-300/60'>Follows {profile.followingCount} accounts</p>
           <div className="grid overflow-hidden grid-cols-6 gap-2">
@@ -443,6 +443,8 @@ console.log();
             <Dialog open={isDialogOpen} onOpenChange={()=>{
               setImagePreview(null)
               setIsDialogOpen(!isDialogOpen)
+              imageRef.current.value='';
+              setHasImage(false);
               }}>
               <DialogTrigger
                 render={
@@ -480,19 +482,20 @@ console.log();
                       placeholder="What's on your mind?"
                     />
                   </Field>
-                  {!hasImage&&<Field
+                  <Field
                     onClick={handleClick}
                     className={`w-fit rounded-full p-2 cursor-pointer hover:bg-white/20`}
                   >
                     <ImagePlusIcon />
-                  </Field>}
+                  </Field>
                   <Field className={`w-full relative rounded-lg border`}>
                     {hasImage&& <img className="w-full rounded-lg object-cover" src={imagePreview} alt="" /> }
+                    
                     {hasImage&&<div
-                    onClick={handleClick}
-                    className={`absolute top-0 w-fit! rounded-full p-2 cursor-pointer hover:bg-white/20`}
+                    onClick={()=>{setHasImage(false); imageRef.current.value=''; setImagePreview(null) }}
+                    className={`absolute top-0 right-0 w-fit! rounded-full p-2 cursor-pointer bg-black/20 hover:bg-black/40`}
                   >
-                    <Edit />
+                    <X/>
                   </div>}
                   </Field>
                 </FieldGroup>

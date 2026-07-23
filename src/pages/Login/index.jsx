@@ -27,7 +27,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const schema = zod.object({
     email: zod.string().nonempty("email is requierd").regex(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,"write a valid email"),
-    password:  zod.string().nonempty("please enter password").regex( /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/,"please follow password rules"),
+    password:  zod.string().nonempty("password is requierd"),
   });
  const {register,formState,handleSubmit,setError} =useForm({defaultValues:{
     email:'',

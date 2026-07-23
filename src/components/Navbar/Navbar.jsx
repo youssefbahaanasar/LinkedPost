@@ -14,6 +14,11 @@ export default function Navbar() {
   const [notificationsCount, setNotificationsCount] = useState(0);
   useEffect(()=>{
     async function getInfo() {
+      if(Cookies.get('userToken')?false:true){
+        setIsLogedIn(false)
+        navigate('/login')
+         return;
+        }
       try {
         const [profileResponse,notificationRes,notificationCountRes] = await Promise.all([
           axios.get('https://route-posts.routemisr.com/users/profile-data',{
@@ -37,8 +42,10 @@ export default function Navbar() {
         setNotificationsCount(notificationCountRes.data.data.unreadCount)
         const following = JSON.stringify(profileResponse.data.data.user.following)
         Cookies.set("following",following)
+
       } catch (error) {
         console.log(error.response);
+        if(error.response.data.errors === "invalid token .. login again" || error.response.data.errors === "token not provided"){Cookies.remove('userToken')}
       }
       
     }

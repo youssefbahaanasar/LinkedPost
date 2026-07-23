@@ -82,7 +82,7 @@ export default function Suggestions() {
                     </Card>
                   </div>
               ))}
-            <span onClick={()=>getMoreSuggestions(page+1)} className='text-blue-500 cursor-pointer hover:underline '>See more</span> 
+            <button onClick={()=>getMoreSuggestions(page+1)} className='text-blue-500 cursor-pointer hover:underline '>See more</button> 
             </div>
 </div>
   </>
